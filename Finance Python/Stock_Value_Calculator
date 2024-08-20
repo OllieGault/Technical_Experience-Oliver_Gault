@@ -1,0 +1,160 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "id": "fa49e8bd-5a7a-48a1-a796-9657d1b0b094",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdin",
+     "output_type": "stream",
+     "text": [
+      "Enter the ticker for the stock:  wmt\n",
+      "Enter the date to evaluate for in yyyy-mm-dd:  2024-08-04\n",
+      "Number of discrete forecast periods:  5\n",
+      "Number of distinct growth phases:  1\n",
+      " Enter cash flow for discrete period: 1 .83\n",
+      " Enter cash flow for discrete period: 2 .94\n",
+      " Enter cash flow for discrete period: 3 1.08\n",
+      " Enter cash flow for discrete period: 4 1.23\n",
+      " Enter cash flow for discrete period: 5 1.23\n"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "\n",
+      "Phase 1:\n"
+     ]
+    },
+    {
+     "name": "stdin",
+     "output_type": "stream",
+     "text": [
+      "  Applicable terminal rate (in decimal form, e.g., 0.05 for 5%):  .03\n",
+      "\n",
+      "Applicable discount rate (in decimal form, e.g., 0.05 for 5%):  .048\n"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "PV for discrete forecasts: $4.8\n",
+      "\n",
+      "Stock value estimation: $61.93\n",
+      "The latest stock price of WMT is $67.59\n",
+      "Recommendation is to sell.\n"
+     ]
+    }
+   ],
+   "source": [
+    "import yfinance as yf\n",
+    "from datetime import datetime\n",
+    "\n",
+    "def get_input():\n",
+    "    ticker = input(\"Enter the ticker for the stock: \").strip().upper()\n",
+    "    date_str = input(\"Enter the date to evaluate for in yyyy-mm-dd: \")\n",
+    "    date = datetime.strptime(date_str, '%Y-%m-%d')\n",
+    "    periods = int(input(\"Number of discrete forecast periods: \"))\n",
+    "    growth_phases = int(input(\"Number of distinct growth phases: \"))\n",
+    "    d_cfs = []\n",
+    "\n",
+    "    phases = []\n",
+    "    for i in range(periods):\n",
+    "        d_cfs.append(float(input(\" Enter cash flow for discrete period: \"+str(i+1))))\n",
+    "    for i in range(growth_phases):\n",
+    "        print(f\"\\nPhase {i+1}:\")\n",
+    "        length_of_phase = 0;\n",
+    "        if i == growth_phases - 1:\n",
+    "            growth_rate = float(input(\"  Applicable terminal rate (in decimal form, e.g., 0.05 for 5%): \"))\n",
+    "            annuity_or_perpetuity = \"P\"\n",
+    "        else:\n",
+    "            growth_rate = float(input(\"  Applicable growth rate (in decimal form, e.g., 0.05 for 5%): \"))\n",
+    "            annuity_or_perpetuity = \"A\"\n",
+    "            length_of_phase = int(input(\"  Length of phase (in periods): \"))\n",
+    "        \n",
+    "        phases.append((growth_rate, length_of_phase, annuity_or_perpetuity))\n",
+    "\n",
+    "    k = float(input(\"\\nApplicable discount rate (in decimal form, e.g., 0.05 for 5%): \"))\n",
+    "    \n",
+    "    return ticker, d_cfs, phases, k, date\n",
+    "\n",
+    "def calcPV(d_cfs, phases, k, date):\n",
+    "    pv = 0.0\n",
+    "    n = 0\n",
+    "    for i in range(len(d_cfs)): # find all PV for discrete forecasts and sum them to its PV\n",
+    "        \n",
+    "        pv += d_cfs[i] * (1+k)**-n;\n",
+    "        n+=1\n",
+    "        \n",
+    "    last_CF = d_cfs[-1]\n",
+    "    print(f\"PV for discrete forecasts: ${round(pv, 2)}\\n\")\n",
+    "    for i in range(len(phases)):\n",
+    "        phase = phases[i]\n",
+    "        phase_pv = 0.0\n",
+    "        g = phase[0]\n",
+    "            \n",
+    "        if phase[2] == 'A': # Calculations for annuities\n",
+    "            phase_pv = (last_CF * (1 + g)/(k - g) * (1 - ((1 + g) / (1 + k))**phase[1]))\n",
+    "            phase_pv = phase_pv * (1+k)**((n-1) * -1)\n",
+    "            last_CF = last_CF * (1+g)**phase[1]\n",
+    "                \n",
+    "        if phase[2] == 'P': # Calculations for perpetuitiews\n",
+    "            phase_pv = last_CF * (1+g) / (k-g)\n",
+    "            phase_pv = phase_pv * (1+k)**((n-1) * -1)\n",
+    "            \n",
+    "        n+=phase[1]\n",
+    "        pv+=phase_pv\n",
+    "    \n",
+    "    ## have to get to current value\n",
+    "    \n",
+    "    d1_date = datetime.strptime('2024-12-31', '%Y-%m-%d')\n",
+    "    day_frac = float((d1_date - date).days / 360) # I use 360 as the finance convention\n",
+    "\n",
+    "    pv = pv*(1+k)**(-day_frac)\n",
+    "    return pv\n",
+    "\n",
+    "\n",
+    "\n",
+    "ticker, periods, phases, discount_rate, date = get_input()\n",
+    "est = calcPV(periods, phases, discount_rate, date)\n",
+    "stock = yf.Ticker(ticker)\n",
+    "latest_price = stock.history(period='1d')['Close'].iloc[-1]\n",
+    "print(f\"Stock value estimation: ${round(est, 2)}\")\n",
+    "print(f\"The latest stock price of {ticker} is ${latest_price:.2f}\")\n",
+    "if est > latest_price:\n",
+    "    print(\"Recommendation is to buy.\")\n",
+    "elif est < latest_price:\n",
+    "    print(\"Recommendation is to sell.\")\n",
+    "else:\n",
+    "    print(\"Recommendation is to hold.\")\n",
+    "\n",
+    "\n"
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3 (ipykernel)",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.12.4"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}

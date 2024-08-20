@@ -1,0 +1,189 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": 30,
+   "id": "a9eb686a-7dfc-402d-a4f4-79130ebc8805",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdin",
+     "output_type": "stream",
+     "text": [
+      "Calculate Present Value (PV) or Future Value (FV)?  pv\n",
+      "Number of discrete forecast periods:  3\n",
+      "Number of distinct growth phases:  1\n",
+      " Enter cash flow for discrete period: 1 100\n",
+      " Enter cash flow for discrete period: 2 200\n",
+      " Enter cash flow for discrete period: 3 300\n"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "\n",
+      "Phase 1:\n"
+     ]
+    },
+    {
+     "name": "stdin",
+     "output_type": "stream",
+     "text": [
+      "  Applicable growth rate (in decimal form, e.g., 0.05 for 5%):  .04\n",
+      "  Is it an Annuity or Perpetuity (A/P)?  p\n",
+      "\n",
+      "Applicable discount rate (in decimal form, e.g., 0.05 for 5%):  .1\n"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "PV for discrete forecasts: $481.59\n",
+      "\n",
+      "PV for Perpetuity phase 1: $3906.84\n",
+      "\n",
+      "Total PV: $4388.43\n"
+     ]
+    }
+   ],
+   "source": [
+    "def get_input():\n",
+    "    calc_type = input(\"Calculate Present Value (PV) or Future Value (FV)? \").strip().upper()\n",
+    "    periods = int(input(\"Number of discrete forecast periods: \"))\n",
+    "    growth_phases = int(input(\"Number of distinct growth phases: \"))\n",
+    "    d_cfs = []\n",
+    "\n",
+    "    phases = []\n",
+    "    for i in range(periods):\n",
+    "        d_cfs.append(float(input(\" Enter cash flow for discrete period: \"+str(i+1))))\n",
+    "    for i in range(growth_phases):\n",
+    "        print(f\"\\nPhase {i+1}:\")\n",
+    "        growth_rate = float(input(\"  Applicable growth rate (in decimal form, e.g., 0.05 for 5%): \"))\n",
+    "        length_of_phase = 0;\n",
+    "        if i == growth_phases - 1:\n",
+    "            annuity_or_perpetuity = input(\"  Is it an Annuity or Perpetuity (A/P)? \").strip().upper()\n",
+    "            if annuity_or_perpetuity == \"A\":\n",
+    "                length_of_phase = int(input(\"  Length of phase (in periods): \"))\n",
+    "            else:\n",
+    "                annuity_or_perpetuity = \"P\"\n",
+    "        else:\n",
+    "            annuity_or_perpetuity = \"A\"\n",
+    "            length_of_phase = int(input(\"  Length of phase (in periods): \"))\n",
+    "        \n",
+    "        phases.append((growth_rate, length_of_phase, annuity_or_perpetuity))\n",
+    "\n",
+    "    k = float(input(\"\\nApplicable discount rate (in decimal form, e.g., 0.05 for 5%): \"))\n",
+    "    \n",
+    "    return calc_type, d_cfs, phases, k\n",
+    "\n",
+    "def calculate_pv_fv(calc_types, d_cfs, phases, k):\n",
+    "    \n",
+    "    if calc_type == 'PV':\n",
+    "        calcPV(d_cfs, phases, k)\n",
+    "    else:\n",
+    "        calcFV(d_cfs, phases, k)\n",
+    "\n",
+    "\n",
+    "def calcPV(d_cfs, phases, k):\n",
+    "    pv = 0.0\n",
+    "    n = 0\n",
+    "    for i in range(len(d_cfs)): # find all PV for discrete forecasts and sum them to its PV\n",
+    "        n+=1\n",
+    "        pv += d_cfs[i] * (1+k)**-n;\n",
+    "        \n",
+    "    last_CF = d_cfs[-1]\n",
+    "    print(f\"PV for discrete forecasts: ${round(pv, 2)}\\n\")\n",
+    "    for i in range(len(phases)):\n",
+    "        phase = phases[i]\n",
+    "        phase_pv = 0.0\n",
+    "        g = phase[0]\n",
+    "            \n",
+    "        if phase[2] == 'A': # Calculations for annuities\n",
+    "            phase_pv = (last_CF * (1 + g)/(k - g) * (1 - ((1 + g) / (1 + k))**phase[1]))\n",
+    "            phase_pv = phase_pv * (1+k)**(n * -1)\n",
+    "            print(f\"PV for Annuity phase {i+1}: ${round(phase_pv, 2)}\\n\")\n",
+    "            last_CF = last_CF * (1+g)**phase[1]\n",
+    "                \n",
+    "        if phase[2] == 'P': # Calculations for perpetuitiews\n",
+    "            phase_pv = last_CF * (1+g) / (k-g)\n",
+    "            phase_pv = phase_pv * (1+k)**((n) * -1)\n",
+    "            print(f\"PV for Perpetuity phase {i+1}: ${round(phase_pv, 2)}\\n\")\n",
+    "            \n",
+    "        n+=phase[1]\n",
+    "        pv+=phase_pv\n",
+    "    print(f\"Total PV: ${round(pv, 2)}\")\n",
+    "\n",
+    "\n",
+    "def calcFV(d_cfs, phases, k):\n",
+    "    fv = 0.0\n",
+    "    n = 0;\n",
+    "    tot_n = len(d_cfs)\n",
+    "    for phase in phases:\n",
+    "        tot_n += phase[1]\n",
+    "    for i in range(len(d_cfs)): # find all FV for discrete forecasts and sum them to its PV\n",
+    "        n+=1\n",
+    "        fv += d_cfs[i] * (1+k)**(tot_n - n);\n",
+    "        \n",
+    "    last_CF = d_cfs[-1]\n",
+    "    print(f\"FV for discrete forecasts: ${round(fv, 2)}\\n\")\n",
+    "    \n",
+    "    for i in range(len(phases)):\n",
+    "        phase = phases[i]\n",
+    "        phase_fv = 0.0\n",
+    "        g = phase[0]\n",
+    "        if phase[2] == 'A':# Calculations for annuities\n",
+    "            n+=phase[1]\n",
+    "            phase_fv = last_CF * (1 + g) * ((1+k)**phase[1] - (1+g)**phase[1]) / (k-g)\n",
+    "            phase_fv = phase_fv * (1+k)**(tot_n - n)\n",
+    "            print(f\"FV for Annuity phase {i+1}: ${round(phase_fv, 2)}\\n\")\n",
+    "            last_CF = last_CF * (1+g)**phase[1]\n",
+    "            \n",
+    "        if phase[2] == 'P': # Calculations for perpetuities\n",
+    "            phase_fv = last_CF * (1+g) / (k-g)\n",
+    "            print(f\"FV for Perpetuity phase {i+1}: ${round(phase_fv, 2)}\\n\")\n",
+    "            \n",
+    "        fv += phase_fv\n",
+    "    print(f\"Total FV: ${round(fv, 2)}\")\n",
+    "\n",
+    "\n",
+    "\n",
+    "\n",
+    "\n",
+    "\n",
+    "calc_type, periods, phases, discount_rate = get_input()\n",
+    "calculate_pv_fv(calc_type, periods, phases, discount_rate)\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "b48cdf95-a25c-4631-8f7a-9c18cfccaa7e",
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3 (ipykernel)",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.12.4"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
